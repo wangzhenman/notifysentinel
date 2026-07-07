@@ -26,6 +26,7 @@ func Init() {
 
 	err = DB.AutoMigrate(
 		&models.Event{},
+		&models.Device{},
 	)
 
 	if err != nil {

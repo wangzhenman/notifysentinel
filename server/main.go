@@ -9,6 +9,7 @@ import (
 
 	"github.com/wangzhenman/notifysentinel/server/database"
 	"github.com/wangzhenman/notifysentinel/server/models"
+	"github.com/wangzhenman/notifysentinel/server/api"
 )
 
 
@@ -36,7 +37,24 @@ func main(){
 
 	r := gin.Default()
 
+	// Device API
 
+	r.POST(
+		"/api/devices/register",
+		api.RegisterDevice,
+	)
+
+
+	r.GET(
+		"/api/devices",
+		api.ListDevices,
+	)
+
+
+	r.DELETE(
+		"/api/devices/:id",
+		api.DeleteDevice,
+	)
 
 	/*
 		健康检查
