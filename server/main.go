@@ -2,29 +2,15 @@ package main
 
 
 import (
+	"log"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/wangzhenman/notifysentinel/server/database"
-	"github.com/wangzhenman/notifysentinel/server/models"
 	"github.com/wangzhenman/notifysentinel/server/api"
+	"github.com/wangzhenman/notifysentinel/server/database"
+	"github.com/wangzhenman/notifysentinel/server/push"
 )
-
-
-
-type EventRequest struct {
-
-	Source string `json:"source" binding:"required"`
-
-	Level string `json:"level" binding:"required"`
-
-	Title string `json:"title" binding:"required"`
-
-	Message string `json:"message"`
-}
-
 
 
 func main(){
@@ -33,6 +19,26 @@ func main(){
 	// 初始化数据库
 	database.Init()
 
+	// 初始化 Push Manager
+	pushManager := push.NewManager()
+
+	// 注册推送 Provider
+	pushManager.Register(
+		push.ConsoleProvider{},
+	)
+
+	miPushProvider,
+	err := push.NewMiPushProviderFromEnv()
+
+	if err != nil {
+		log.Printf(
+			"mipush provider disabled: %v",
+			err,
+		)
+	} else if miPushProvider != nil {
+		pushManager.Register(miPushProvider)
+		log.Printf("mipush provider enabled")
+	}
 
 
 	r := gin.Default()
@@ -48,6 +54,11 @@ func main(){
 	r.GET(
 		"/api/devices",
 		api.ListDevices,
+	)
+
+	r.GET(
+		"/api/devices/me",
+		api.GetCurrentDevice,
 	)
 
 
@@ -78,76 +89,7 @@ func main(){
 	/*
 		提交事件
 	*/
-	r.POST("/api/events",func(c *gin.Context){
-
-
-		var req EventRequest
-
-
-
-		if err:=c.ShouldBindJSON(&req);err!=nil{
-
-
-			c.JSON(
-				http.StatusBadRequest,
-				gin.H{
-					"error":err.Error(),
-				},
-			)
-
-			return
-		}
-
-
-
-
-		event:=models.Event{
-
-			Source:req.Source,
-
-			Level:req.Level,
-
-			Title:req.Title,
-
-			Message:req.Message,
-		}
-
-
-
-		// 保存数据库
-
-		result:=database.DB.Create(&event)
-
-
-
-		if result.Error!=nil{
-
-			c.JSON(
-				500,
-				gin.H{
-					"error":result.Error.Error(),
-				},
-			)
-
-			return
-		}
-
-
-
-
-		c.JSON(
-			http.StatusOK,
-			gin.H{
-
-				"status":"received",
-
-				"id":event.ID,
-
-				"time":time.Now(),
-			},
-		)
-
-	})
+	r.POST("/api/events", api.SubmitEvent(pushManager))
 
 
 
@@ -156,43 +98,7 @@ func main(){
 	/*
 		查询历史事件
 	*/
-	r.GET("/api/events",func(c *gin.Context){
-
-
-
-		var events []models.Event
-
-
-
-		result:=database.DB.
-			Order("created_at desc").
-			Find(&events)
-
-
-
-
-		if result.Error!=nil{
-
-			c.JSON(
-				500,
-				gin.H{
-					"error":result.Error.Error(),
-				},
-			)
-
-			return
-
-		}
-
-
-
-
-		c.JSON(
-			http.StatusOK,
-			events,
-		)
-
-	})
+	r.GET("/api/events", api.ListEvents)
 
 
 

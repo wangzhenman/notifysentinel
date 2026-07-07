@@ -1,0 +1,6 @@
+.DS_Store
+__MACOSX/
+
+# Local runtime artifacts
+server/notifysentinel.db
+android/build-run.log
